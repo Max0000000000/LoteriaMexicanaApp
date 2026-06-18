@@ -40,7 +40,7 @@ namespace LoteriaMexicanaApp.UI
                 if (File.Exists(filePath))
                 {
                     try
-                      {
+                    {
                         // Using FileStream and Image.FromStream prevents GDI+ from locking the file on disk
                         using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                         {
@@ -89,7 +89,7 @@ namespace LoteriaMexicanaApp.UI
                 for (int i = 1; i <= 54; i++)
                 {
                     string filePath = Path.Combine(_folderPath, $"{i}.jpg");
-                    
+
                     lock (_cache)
                     {
                         if (_cache.ContainsKey(i)) continue;

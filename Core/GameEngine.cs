@@ -10,18 +10,19 @@ namespace LoteriaMexicanaApp.Core
         private System.Timers.Timer? _timer;
         private int _secondsElapsed;
         private Deck _deck = new Deck();
-        
+
         public List<Board> LocalBoards { get; } = new List<Board>();
         public List<bool[]> LocalPlayersMarked { get; } = new List<bool[]>();
-        
+
         // Backward compatibility properties for single board usage
         public Board LocalBoard => LocalBoards.Count > 0 ? LocalBoards[0] : new Board();
         public bool[] LocalPlayerMarked => LocalPlayersMarked.Count > 0 ? LocalPlayersMarked[0] : new bool[25];
-        
+
         public List<Card> CalledCards { get; private set; } = new List<Card>();
         public Card? CurrentCard { get; private set; }
         public GameState State { get; private set; } = GameState.Lobby;
         public int IntervalSeconds { get; set; } = 5;
+        public GamePattern ActiveWinPattern { get; set; } = GamePattern.FromEnum(WinPattern.Linea5);
 
         // Events
         public event Action<Card, int>? CardDrawn;
@@ -70,7 +71,7 @@ namespace LoteriaMexicanaApp.Core
         {
             LocalBoards.Clear();
             LocalBoards.AddRange(boards);
-            
+
             LocalPlayersMarked.Clear();
             foreach (var b in boards)
             {
@@ -79,7 +80,7 @@ namespace LoteriaMexicanaApp.Core
 
             CalledCards.Clear();
             CurrentCard = null;
-            
+
             // Re-generate and shuffle deck
             _deck = new Deck();
             if (duplicateCount > 0)
@@ -93,7 +94,7 @@ namespace LoteriaMexicanaApp.Core
             StateChanged?.Invoke(State);
 
             _timer?.Start();
-            
+
             // Draw first card immediately
             DrawNextCard();
         }
@@ -104,10 +105,10 @@ namespace LoteriaMexicanaApp.Core
         public void InitializeClientGame(List<Board> boards)
         {
             _timer?.Stop();
-            
+
             LocalBoards.Clear();
             LocalBoards.AddRange(boards);
-            
+
             LocalPlayersMarked.Clear();
             foreach (var b in boards)
             {
@@ -116,7 +117,7 @@ namespace LoteriaMexicanaApp.Core
 
             CalledCards.Clear();
             CurrentCard = null;
-            
+
             State = GameState.Playing;
             _secondsElapsed = 0;
             StateChanged?.Invoke(State);
@@ -144,7 +145,7 @@ namespace LoteriaMexicanaApp.Core
                 CurrentCard = card;
                 CalledCards.Add(card);
                 CardDrawn?.Invoke(card, _deck.Count);
-                
+
                 if (State == GameState.Playing)
                 {
                     _timer?.Start();
@@ -239,7 +240,7 @@ namespace LoteriaMexicanaApp.Core
         public (bool HasWon, List<int> WinningIndices, string Description, bool HasMarkedButNotCalled, List<int> MarkedButNotCalledIndices, string MarkedButNotCalledDescription) CheckLocalWinWithCalled()
         {
             var calledIds = CalledCards.Select(c => c.Id).ToList();
-            return LocalBoard.CheckWinWithCalled(LocalPlayerMarked, calledIds);
+            return LocalBoard.CheckWinWithCalled(LocalPlayerMarked, calledIds, ActiveWinPattern);
         }
 
         /// <summary>
@@ -249,11 +250,11 @@ namespace LoteriaMexicanaApp.Core
         public (bool HasWon, int BoardIndex, List<int> WinningIndices, string Description, bool HasMarkedButNotCalled, int MarkedButNotCalledBoardIndex, List<int> MarkedButNotCalledIndices, string MarkedButNotCalledDescription) CheckLocalWinWithCalledMulti()
         {
             var calledIds = CalledCards.Select(c => c.Id).ToList();
-            
+
             // 1. Check if there's any actual win on any board
             for (int i = 0; i < LocalBoards.Count; i++)
             {
-                var check = LocalBoards[i].CheckWinWithCalled(LocalPlayersMarked[i], calledIds);
+                var check = LocalBoards[i].CheckWinWithCalled(LocalPlayersMarked[i], calledIds, ActiveWinPattern);
                 if (check.HasWon)
                 {
                     return (true, i, check.WinningIndices, check.Description, false, -1, new List<int>(), string.Empty);
@@ -263,7 +264,7 @@ namespace LoteriaMexicanaApp.Core
             // 2. If no actual win, check if there's any false win (marked but not called) on any board
             for (int i = 0; i < LocalBoards.Count; i++)
             {
-                var check = LocalBoards[i].CheckWinWithCalled(LocalPlayersMarked[i], calledIds);
+                var check = LocalBoards[i].CheckWinWithCalled(LocalPlayersMarked[i], calledIds, ActiveWinPattern);
                 if (check.HasMarkedButNotCalled)
                 {
                     return (false, -1, new List<int>(), string.Empty, true, i, check.MarkedButNotCalledIndices, check.MarkedButNotCalledDescription);

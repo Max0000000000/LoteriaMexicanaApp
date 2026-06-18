@@ -32,6 +32,7 @@ namespace LoteriaMexicanaApp.Data
         private readonly string _basePath;
         private readonly string _boardsPath;
         private readonly string _statsFilePath;
+        private readonly string _patternsPath;
 
         public DataRepository()
         {
@@ -39,9 +40,11 @@ namespace LoteriaMexicanaApp.Data
             _basePath = AppDomain.CurrentDomain.BaseDirectory;
             _boardsPath = Path.Combine(_basePath, "SavedBoards");
             _statsFilePath = Path.Combine(_basePath, "stats.json");
+            _patternsPath = Path.Combine(_basePath, "SavedPatterns");
 
             // Ensure directories exist
             Directory.CreateDirectory(_boardsPath);
+            Directory.CreateDirectory(_patternsPath);
         }
 
         // --- BOARD PERSISTENCE ---
@@ -194,6 +197,60 @@ namespace LoteriaMexicanaApp.Data
 
             stats.MatchHistory.Insert(0, record); // Most recent first
             SaveStats(stats);
+        }
+
+        // --- CUSTOM PATTERN PERSISTENCE ---
+
+        public void SaveCustomPattern(GamePattern pattern)
+        {
+            if (string.IsNullOrEmpty(pattern.Name))
+            {
+                pattern.Name = $"Patron_{DateTime.Now:yyyyMMdd_HHmmss}";
+            }
+
+            // Clean invalid filename chars
+            string safeName = string.Join("_", pattern.Name.Split(Path.GetInvalidFileNameChars()));
+            string filePath = Path.Combine(_patternsPath, $"{safeName}.json");
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(pattern, options);
+            File.WriteAllText(filePath, json);
+        }
+
+        public List<GamePattern> LoadCustomPatterns()
+        {
+            var patterns = new List<GamePattern>();
+            if (!Directory.Exists(_patternsPath)) return patterns;
+
+            string[] files = Directory.GetFiles(_patternsPath, "*.json");
+            foreach (var file in files)
+            {
+                try
+                {
+                    string json = File.ReadAllText(file);
+                    var pattern = JsonSerializer.Deserialize<GamePattern>(json);
+                    if (pattern != null)
+                    {
+                        patterns.Add(pattern);
+                    }
+                }
+                catch { }
+            }
+            return patterns;
+        }
+
+        public void DeleteCustomPattern(string name)
+        {
+            string safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+            string filePath = Path.Combine(_patternsPath, $"{safeName}.json");
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    File.Delete(filePath);
+                }
+                catch { }
+            }
         }
     }
 }

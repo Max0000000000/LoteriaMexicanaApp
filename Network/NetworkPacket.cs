@@ -9,7 +9,7 @@ namespace LoteriaMexicanaApp.Network
         public string Type { get; set; } = string.Empty; // JOIN, JOIN_ACK, PLAYER_LIST, GAME_STATE, CARD_DRAWN, MARK_CELL, LOTERIA_CLAIM, LOTERIA_RESULT, CHAT
         public string SenderId { get; set; } = string.Empty;
         public string SenderName { get; set; } = string.Empty;
-        
+
         // Dynamic payload properties
         public string PlayerName { get; set; } = string.Empty;
         public string GameState { get; set; } = string.Empty;
@@ -22,6 +22,9 @@ namespace LoteriaMexicanaApp.Network
         public List<string> Players { get; set; } = new List<string>();
         public string BoardJson { get; set; } = string.Empty; // Serialized Board or List<Board> object
         public string WinningLineDescription { get; set; } = string.Empty;
+        public bool IsDoublesMode { get; set; }
+        public string WinPattern { get; set; } = "Linea5";
+        public string CustomPatternData { get; set; } = string.Empty;
     }
 
     public class LobbyPlayer

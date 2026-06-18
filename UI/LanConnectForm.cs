@@ -64,7 +64,7 @@ namespace LoteriaMexicanaApp.UI
 
             // Mode Label & RadioButtons
             Label lblMode = new Label { Text = "Modo de Red:", Location = new Point(20, 100), Size = new Size(130, 20) };
-            
+
             _rbHost = new RadioButton
             {
                 Text = "Crear Partida (Host)",
@@ -91,16 +91,16 @@ namespace LoteriaMexicanaApp.UI
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 Text = GetLocalIPAddress(),
-                ReadOnly = true // Disabled by default for Host
+                ReadOnly = false
             };
 
             _lblIpInfo = new Label
             {
-                Text = "Tu IP local para compartir con otros.",
+                Text = "Tus IPs: " + GetLocalIPAddressesString(),
                 Font = new Font("Segoe UI", 8f, FontStyle.Italic),
                 ForeColor = Color.Gray,
-                Location = new Point(160, 185),
-                Size = new Size(180, 15)
+                Location = new Point(20, 185),
+                Size = new Size(320, 20)
             };
 
             // Port Label & TextBox
@@ -155,8 +155,8 @@ namespace LoteriaMexicanaApp.UI
             if (_rbHost.Checked)
             {
                 _txtIp.Text = GetLocalIPAddress();
-                _txtIp.ReadOnly = true;
-                _lblIpInfo.Text = "Tu IP local para compartir con otros.";
+                _txtIp.ReadOnly = false;
+                _lblIpInfo.Text = "Tus IPs: " + GetLocalIPAddressesString();
                 _btnConnect.Text = "Iniciar Servidor";
                 _btnConnect.BackColor = Color.FromArgb(76, 175, 80);
             }
@@ -199,14 +199,52 @@ namespace LoteriaMexicanaApp.UI
             try
             {
                 var host = Dns.GetHostEntry(Dns.GetHostName());
+                var ipList = new System.Collections.Generic.List<string>();
                 foreach (var ip in host.AddressList)
                 {
                     if (ip.AddressFamily == AddressFamily.InterNetwork)
                     {
-                        // Exclude localhost
+                        string ipStr = ip.ToString();
+                        if (!ipStr.StartsWith("127."))
+                        {
+                            ipList.Add(ipStr);
+                        }
+                    }
+                }
+
+                // Prioritize standard local networks (192.168.1.x, 192.168.0.x, etc.) over virtual host-only ranges (like 192.168.56.x)
+                var preferred = ipList.FirstOrDefault(ip => ip.StartsWith("192.168.1.") || ip.StartsWith("192.168.0."));
+                if (preferred != null) return preferred;
+
+                preferred = ipList.FirstOrDefault(ip => ip.StartsWith("192.168."));
+                if (preferred != null && !preferred.StartsWith("192.168.56.")) return preferred;
+
+                preferred = ipList.FirstOrDefault(ip => ip.StartsWith("10."));
+                if (preferred != null) return preferred;
+
+                // Fallback to first non-loopback IP
+                if (ipList.Count > 0) return ipList[0];
+            }
+            catch
+            {
+                // Ignore
+            }
+            return "127.0.0.1";
+        }
+
+        public static string GetLocalIPAddressesString()
+        {
+            var ips = new System.Collections.Generic.List<string>();
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                    {
                         if (!ip.ToString().StartsWith("127."))
                         {
-                            return ip.ToString();
+                            ips.Add(ip.ToString());
                         }
                     }
                 }
@@ -215,7 +253,7 @@ namespace LoteriaMexicanaApp.UI
             {
                 // Ignore
             }
-            return "127.0.0.1";
+            return ips.Count > 0 ? string.Join(" / ", ips) : "127.0.0.1";
         }
     }
 }

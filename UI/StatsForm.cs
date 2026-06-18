@@ -160,7 +160,7 @@ namespace LoteriaMexicanaApp.UI
         private void LoadStatsData()
         {
             var stats = _repository.LoadStats(_username);
-            
+
             // Set summary values
             var lblGamesPlayed = this.Controls.Find("lblGamesPlayed", true)[0] as Label;
             var lblSoloWins = this.Controls.Find("lblSoloWins", true)[0] as Label;

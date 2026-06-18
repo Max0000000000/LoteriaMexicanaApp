@@ -20,14 +20,16 @@ namespace LoteriaMexicanaApp.Network
         private NetworkStream? _clientStream;
         private CancellationTokenSource? _cts;
         private readonly List<ClientHandler> _clients = new List<ClientHandler>();
-        
+
         public bool IsHost { get; private set; }
         public bool IsConnected { get; private set; }
         public string LocalClientId { get; private set; } = Guid.NewGuid().ToString();
+        public bool IsDoublesMode { get; set; }
+        public GamePattern ActiveWinPattern { get; set; } = GamePattern.FromEnum(WinPattern.Linea5);
         public string LocalPlayerName { get; private set; } = "Jugador";
-        
+
         public List<LobbyPlayer> ConnectedPlayers { get; } = new List<LobbyPlayer>();
-        
+
         public List<int> HostCalledCardIds { get; } = new List<int>();
 
         // Host events
@@ -77,13 +79,13 @@ namespace LoteriaMexicanaApp.Network
                 BoardJson = JsonSerializer.Serialize(hostBoards),
                 IsConnected = true
             };
-            
+
             hostPlayer.MarkedCellsList.Clear();
             foreach (var b in hostBoards)
             {
                 hostPlayer.MarkedCellsList.Add(new bool[25]);
             }
-            
+
             ConnectedPlayers.Add(hostPlayer);
 
             try
@@ -142,7 +144,7 @@ namespace LoteriaMexicanaApp.Network
                 // Async connect
                 var connectTask = _client.ConnectAsync(ip, port);
                 connectTask.Wait(5000); // 5 seconds timeout
-                
+
                 if (!_client.Connected)
                 {
                     throw new TimeoutException("No se pudo conectar al servidor (Tiempo de espera agotado)");
@@ -234,6 +236,23 @@ namespace LoteriaMexicanaApp.Network
                 case "GAME_STATE":
                     if (Enum.TryParse<GameState>(packet.GameState, out var state))
                     {
+                        IsDoublesMode = packet.IsDoublesMode;
+                        if (packet.WinPattern == "CUSTOM" && !string.IsNullOrEmpty(packet.CustomPatternData))
+                        {
+                            try
+                            {
+                                var customPat = System.Text.Json.JsonSerializer.Deserialize<GamePattern>(packet.CustomPatternData);
+                                if (customPat != null)
+                                {
+                                    ActiveWinPattern = customPat;
+                                }
+                            }
+                            catch { }
+                        }
+                        else if (Enum.TryParse<WinPattern>(packet.WinPattern, out var pat))
+                        {
+                            ActiveWinPattern = GamePattern.FromEnum(pat);
+                        }
                         GameStateReceived?.Invoke(state);
                     }
                     break;
@@ -253,12 +272,30 @@ namespace LoteriaMexicanaApp.Network
         /// </summary>
         public void HostBroadcastGameState(GameState state)
         {
+            HostBroadcastGameState(state, IsDoublesMode, ActiveWinPattern.IsCustom ? "CUSTOM" : ActiveWinPattern.Name);
+        }
+
+        public void HostBroadcastGameState(GameState state, bool isDoublesMode, string winPattern)
+        {
             if (!IsHost) return;
+
+            IsDoublesMode = isDoublesMode;
+            if (winPattern == "CUSTOM")
+            {
+                // ActiveWinPattern remains unchanged (caller already set it)
+            }
+            else if (Enum.TryParse<WinPattern>(winPattern, out var pat))
+            {
+                ActiveWinPattern = GamePattern.FromEnum(pat);
+            }
 
             var packet = new NetworkPacket
             {
                 Type = "GAME_STATE",
                 GameState = state.ToString(),
+                IsDoublesMode = isDoublesMode,
+                WinPattern = winPattern,
+                CustomPatternData = ActiveWinPattern.IsCustom ? System.Text.Json.JsonSerializer.Serialize(ActiveWinPattern) : string.Empty,
                 SenderId = LocalClientId,
                 SenderName = LocalPlayerName
             };
@@ -415,13 +452,13 @@ namespace LoteriaMexicanaApp.Network
                         player.MarkedCellsList.Add(new bool[25]);
                     }
 
-                    var winResult = boards[i].CheckWinWithCalled(player.MarkedCellsList[i], calledIds);
+                    var winResult = boards[i].CheckWinWithCalled(player.MarkedCellsList[i], calledIds, ActiveWinPattern);
                     if (winResult.HasWon)
                     {
                         hasWon = true;
                         string boardWord = TranslationManager.CurrentLanguage == "EN" ? "Board" : "Tabla";
-                        winningLineDesc = boards.Count > 1 
-                            ? $"{boardWord} {i + 1} - {winResult.Description}" 
+                        winningLineDesc = boards.Count > 1
+                            ? $"{boardWord} {i + 1} - {winResult.Description}"
                             : winResult.Description;
                         break;
                     }
@@ -628,7 +665,7 @@ namespace LoteriaMexicanaApp.Network
                             BoardJson = packet.BoardJson,
                             IsHost = false
                         };
-                        
+
                         try
                         {
                             var boards = JsonSerializer.Deserialize<List<Board>>(packet.BoardJson);

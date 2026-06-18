@@ -45,14 +45,17 @@ namespace LoteriaMexicanaApp.UI
             }
         }
 
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public bool FillBounds { get; set; } = false;
+
         public CardControl()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw, true);
-            
-            Size = new Size(90, 130);
+
+            Size = new Size(75, 130);
 
             // Subscribe to image downloaded event to refresh when card images arrive
             ImageCache.ImageDownloaded += HandleImageDownloaded;
@@ -83,9 +86,12 @@ namespace LoteriaMexicanaApp.UI
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            
+
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.CompositingQuality = CompositingQuality.HighQuality;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
             // Clear background
@@ -93,10 +99,39 @@ namespace LoteriaMexicanaApp.UI
 
             int width = Width;
             int height = Height;
-            
-            // Adjust card boundaries
-            Rectangle cardRect = new Rectangle(4, 4, width - 8, height - 8);
-            int cornerRadius = 8;
+
+            Rectangle cardRect;
+            int cornerRadius;
+
+            // Enforce aspect ratio (0.58) and apply spacing factor (0.96) to prevent stretching and crowding
+            float targetRatio = 0.58f;
+            float spacingFactor = 0.96f;
+
+            int availW = (int)((width - 8) * spacingFactor);
+            int availH = (int)((height - 8) * spacingFactor);
+
+            if (availW < 10 || availH < 10)
+            {
+                // Fallback for extremely small controls (like when window is minimized or collapsed)
+                cardRect = new Rectangle(2, 2, Math.Max(2, width - 4), Math.Max(2, height - 4));
+                cornerRadius = Math.Max(2, cardRect.Width / 10);
+            }
+            else
+            {
+                int cardW = availW;
+                int cardH = (int)(availW / targetRatio);
+
+                if (cardH > availH)
+                {
+                    cardH = availH;
+                    cardW = (int)(availH * targetRatio);
+                }
+
+                int cardX = (width - cardW) / 2;
+                int cardY = (height - cardH) / 2;
+                cardRect = new Rectangle(cardX, cardY, cardW, cardH);
+                cornerRadius = Math.Max(4, cardRect.Width / 10);
+            }
 
             // Define card path
             using GraphicsPath path = GetRoundedRectPath(cardRect, cornerRadius);
@@ -140,79 +175,42 @@ namespace LoteriaMexicanaApp.UI
                     // Draw official image inside card boundary with rounded corners clipping
                     GraphicsState state = g.Save();
                     g.SetClip(path);
-                    
+
                     // Draw image stretched to cover card
                     g.DrawImage(img, cardRect);
                     g.Restore(state);
-
-                    // Draw card index (white outline with black fill for readability)
-                    using (Font indexFont = new Font("Segoe UI", height * 0.08f, FontStyle.Bold))
-                    {
-                        string idStr = _card.Id.ToString();
-                        
-                        // Drop shadow outline
-                        g.DrawString(idStr, indexFont, Brushes.White, cardRect.X + 7, cardRect.Y + 5);
-                        g.DrawString(idStr, indexFont, Brushes.White, cardRect.X + 5, cardRect.Y + 5);
-                        g.DrawString(idStr, indexFont, Brushes.White, cardRect.X + 6, cardRect.Y + 4);
-                        g.DrawString(idStr, indexFont, Brushes.White, cardRect.X + 6, cardRect.Y + 6);
-                        
-                        g.DrawString(idStr, indexFont, Brushes.Black, cardRect.X + 6, cardRect.Y + 5);
-                    }
-
-                    // Draw name box at the bottom with white glassmorphism bar
-                    using (Font nameFont = new Font("Segoe UI", height * 0.08f, FontStyle.Bold))
-                    {
-                        string name = TranslationManager.GetCardName(_card);
-                        SizeF nameSize = g.MeasureString(name, nameFont);
-                        
-                        RectangleF textBar = new RectangleF(
-                            cardRect.X + 2, 
-                            cardRect.Bottom - nameSize.Height - 6, 
-                            cardRect.Width - 4, 
-                            nameSize.Height + 4
-                        );
-
-                        using (SolidBrush barBrush = new SolidBrush(Color.FromArgb(190, 255, 255, 255)))
-                        {
-                            g.FillRectangle(barBrush, textBar);
-                        }
-
-                        float nameX = cardRect.X + (cardRect.Width - nameSize.Width) / 2f;
-                        float nameY = textBar.Y + (textBar.Height - nameSize.Height) / 2f;
-                        g.DrawString(name, nameFont, Brushes.Black, nameX, nameY);
-                    }
                 }
                 else
                 {
                     // Fallback to emoji drawing in color
-                    // 1. Draw Index Number
-                    using (Font indexFont = new Font("Segoe UI", height * 0.08f, FontStyle.Bold))
+                    // 1. Draw Index Number (scaled based on cardRect height)
+                    using (Font indexFont = new Font("Segoe UI", cardRect.Height * 0.08f, FontStyle.Bold))
                     {
-                        g.DrawString(_card.Id.ToString(), indexFont, Brushes.DimGray, cardRect.X + 6, cardRect.Y + 4);
+                        g.DrawString(_card.Id.ToString(), indexFont, Brushes.DimGray, cardRect.X + Math.Max(2, cardRect.Width * 0.06f), cardRect.Y + Math.Max(2, cardRect.Height * 0.04f));
                     }
 
                     // 2. Draw Color Emoji Symbol (Centered using TextRenderer)
                     string emoji = string.IsNullOrWhiteSpace(_card.Emoji) ? "🃏" : _card.Emoji;
-                    using (Font emojiFont = new Font("Segoe UI Emoji", height * 0.32f))
+                    using (Font emojiFont = new Font("Segoe UI Emoji", cardRect.Height * 0.32f))
                     {
                         Size emojiSize = TextRenderer.MeasureText(emoji, emojiFont);
                         int emojiX = cardRect.X + (cardRect.Width - emojiSize.Width) / 2;
-                        int emojiY = cardRect.Y + (cardRect.Height - emojiSize.Height) / 2 - 5;
-                        
+                        int emojiY = cardRect.Y + (cardRect.Height - emojiSize.Height) / 2 - (int)(cardRect.Height * 0.04f);
+
                         // TextRenderer.DrawText triggers DirectWrite color fallback
                         TextRenderer.DrawText(g, emoji, emojiFont, new Point(emojiX, emojiY), Color.Black, TextFormatFlags.Default);
                     }
 
-                    // 3. Draw Card Name (Bottom)
-                    using (Font nameFont = new Font("Segoe UI", height * 0.085f, FontStyle.Bold))
+                    // 3. Draw Card Name (Bottom, scaled based on cardRect height)
+                    using (Font nameFont = new Font("Segoe UI", cardRect.Height * 0.085f, FontStyle.Bold))
                     {
                         string name = TranslationManager.GetCardName(_card);
                         SizeF nameSize = g.MeasureString(name, nameFont);
-                        
+
                         RectangleF textBar = new RectangleF(
-                            cardRect.X + 2, 
-                            cardRect.Bottom - nameSize.Height - 6, 
-                            cardRect.Width - 4, 
+                            cardRect.X + 2,
+                            cardRect.Bottom - nameSize.Height - 6,
+                            cardRect.Width - 4,
                             nameSize.Height + 4
                         );
 
@@ -223,7 +221,7 @@ namespace LoteriaMexicanaApp.UI
 
                         float nameX = cardRect.X + (cardRect.Width - nameSize.Width) / 2f;
                         float nameY = textBar.Y + (textBar.Height - nameSize.Height) / 2f;
-                        
+
                         g.DrawString(name, nameFont, Brushes.Black, nameX, nameY);
                     }
                 }
@@ -231,7 +229,7 @@ namespace LoteriaMexicanaApp.UI
             else
             {
                 // Empty card placeholder
-                using (Font emptyFont = new Font("Segoe UI", height * 0.08f, FontStyle.Italic))
+                using (Font emptyFont = new Font("Segoe UI", cardRect.Height * 0.08f, FontStyle.Italic))
                 {
                     string text = TranslationManager.CurrentLanguage == "EN" ? "Empty" : "Vacío";
                     SizeF size = g.MeasureString(text, emptyFont);
@@ -357,13 +355,13 @@ namespace LoteriaMexicanaApp.UI
                 g.FillEllipse(glareBrush, localGlare);
             }
             g.Restore(state);
-            
+
             // 5. Poker chip dash ring
             using (Pen innerPen = new Pen(Color.FromArgb(50, Color.White), 1f))
             {
                 innerPen.DashStyle = DashStyle.Dash;
                 float innerSize = chipDiameter * 0.6f;
-                g.DrawEllipse(innerPen, chipX + (chipDiameter - innerSize)/2f, chipY + (chipDiameter - innerSize)/2f, innerSize, innerSize);
+                g.DrawEllipse(innerPen, chipX + (chipDiameter - innerSize) / 2f, chipY + (chipDiameter - innerSize) / 2f, innerSize, innerSize);
             }
         }
 
@@ -371,12 +369,12 @@ namespace LoteriaMexicanaApp.UI
         {
             GraphicsPath path = new GraphicsPath();
             int diameter = radius * 2;
-            
+
             path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
             path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
             path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
             path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
-            
+
             path.CloseFigure();
             return path;
         }

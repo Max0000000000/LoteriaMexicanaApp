@@ -31,7 +31,7 @@ namespace LoteriaMexicanaApp.UI
         public BoardEditorForm(DataRepository repository, Board? boardToEdit = null)
         {
             _repository = repository;
-            _editingBoard = boardToEdit != null 
+            _editingBoard = boardToEdit != null
                 ? new Board(boardToEdit.Name, boardToEdit.Cards) // Edit clone
                 : Board.GenerateRandom("Mi Tabla"); // Generate random default
 
@@ -203,10 +203,10 @@ namespace LoteriaMexicanaApp.UI
                     Dock = DockStyle.Fill,
                     Cursor = Cursors.Hand
                 };
-                
+
                 cardCtrl.Click += (s, e) => SelectCell(index);
                 _gridControls.Add(cardCtrl);
-                
+
                 int row = index / 5;
                 int col = index % 5;
                 _gridPanel.Controls.Add(cardCtrl, col, row);
@@ -221,7 +221,7 @@ namespace LoteriaMexicanaApp.UI
                 var thumb = new CardControl
                 {
                     CardData = card,
-                    Size = new Size(65, 95),
+                    Size = new Size(55, 95),
                     Margin = new Padding(4),
                     Cursor = Cursors.Hand
                 };
@@ -272,7 +272,7 @@ namespace LoteriaMexicanaApp.UI
         {
             var random = new Random();
             var shuffledBase = Deck.BaseCards.OrderBy(x => random.Next()).ToList();
-            
+
             for (int i = 0; i < 25; i++)
             {
                 _editingBoard.Cards[i] = shuffledBase[i];

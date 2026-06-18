@@ -13,6 +13,13 @@ namespace LoteriaMexicanaApp.UI
             ["ES"] = new Dictionary<string, string>
             {
                 ["Text_Title"] = "Lotería Mexicana - Juego Premium",
+                ["Config_DoublesMode"] = "Modo Dobles",
+                ["Config_WinPattern"] = "Patrón de Victoria",
+                ["Pattern_Linea5"] = "Línea de 5",
+                ["Pattern_Full"] = "Tabla Llena",
+                ["Pattern_Cruz"] = "Cruz (X)",
+                ["Pattern_LetraL"] = "Letra L",
+                ["Pattern_Esquinas"] = "Cuatro Esquinas",
                 ["Profile_Player"] = "PERFIL JUGADOR",
                 ["Config"] = "CONFIGURACIÓN",
                 ["Btn_Design"] = "🃏 Diseñar",
@@ -77,6 +84,13 @@ namespace LoteriaMexicanaApp.UI
             ["EN"] = new Dictionary<string, string>
             {
                 ["Text_Title"] = "Mexican Lottery - Premium Game",
+                ["Config_DoublesMode"] = "Doubles Mode",
+                ["Config_WinPattern"] = "Winning Pattern",
+                ["Pattern_Linea5"] = "5 in a Line",
+                ["Pattern_Full"] = "Full Board",
+                ["Pattern_Cruz"] = "Cross (X)",
+                ["Pattern_LetraL"] = "Letter L",
+                ["Pattern_Esquinas"] = "Four Corners",
                 ["Profile_Player"] = "PLAYER PROFILE",
                 ["Config"] = "CONFIGURATION",
                 ["Btn_Design"] = "🃏 Design",

@@ -19,7 +19,7 @@ namespace LoteriaMexicanaApp.UI
             {
                 _synth = new SpeechSynthesizer();
                 UpdateVoice();
-                
+
                 // Adjust volume and rate
                 _synth.Volume = 100;
                 _synth.Rate = -1; // Speak slightly slower for clarity
@@ -83,10 +83,10 @@ namespace LoteriaMexicanaApp.UI
             Buffer.BlockCopy(BitConverter.GetBytes((short)1), 0, wav, 20, 2); // Audio format (1 = PCM)
             Buffer.BlockCopy(BitConverter.GetBytes(channels), 0, wav, 22, 2);
             Buffer.BlockCopy(BitConverter.GetBytes(sampleRate), 0, wav, 24, 4);
-            
+
             int byteRate = sampleRate * channels * (bitsPerSample / 8);
             Buffer.BlockCopy(BitConverter.GetBytes(byteRate), 0, wav, 28, 4);
-            
+
             short blockAlign = (short)(channels * (bitsPerSample / 8));
             Buffer.BlockCopy(BitConverter.GetBytes(blockAlign), 0, wav, 32, 2);
             Buffer.BlockCopy(BitConverter.GetBytes(bitsPerSample), 0, wav, 34, 2);
@@ -101,7 +101,7 @@ namespace LoteriaMexicanaApp.UI
             {
                 double time = (double)i / sampleRate;
                 double amplitude = Math.Exp(-time / tConstant); // Exponential decay
-                
+
                 // Mix main frequency and a couple of harmonics for metallic timbre
                 double angle1 = 2.0 * Math.PI * frequency * time;
                 double angle2 = 2.0 * Math.PI * (frequency * 1.5) * time;
@@ -149,10 +149,10 @@ namespace LoteriaMexicanaApp.UI
                     {
                         // Clean up text-to-speech queues
                         _synth.SpeakAsyncCancelAll();
-                        
+
                         // Speak card name
                         _synth.Speak($"¡{cardName}!");
-                        
+
                         if (!string.IsNullOrWhiteSpace(riddle))
                         {
                             _synth.Speak(riddle);
